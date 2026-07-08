@@ -28,9 +28,45 @@ A USB Host bootloader for STM32F4 that updates firmware straight from a USB flas
 └── README.md
 ```
 
-## How it works
+## Bootloader Workflow
 
-On power-up, the bootloader initializes the hardware and starts the USB host stack. If no USB drive is detected, it jumps straight to the existing application. If a drive is found, it mounts the FAT filesystem, looks for the firmware file, and compares it against what's currently in flash. If they match, it just jumps to the application as-is. If they're different, it erases the relevant flash sectors, programs the new firmware, and then jumps to the updated application.
+```text
+                Power On
+                    │
+                    ▼
+          Initialize Hardware
+                    │
+                    ▼
+           Initialize USB Host
+                    │
+                    ▼
+ Wait up to 3 seconds for USB flash drive
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+     USB Detected         Timeout
+          │                   │
+          ▼                   ▼
+      Mount FATFS      Jump to Application
+          │
+          ▼
+  Locate Firmware Image
+          │
+          ▼
+ Compare with Installed Firmware
+      │              │
+      │              │
+ Identical      New Firmware
+      │              │
+      ▼              ▼
+Jump to App    Erase Flash
+                     │
+                     ▼
+              Program Flash
+                     │
+                     ▼
+             Jump to Application
+```
 
 ## Updating firmware
 
