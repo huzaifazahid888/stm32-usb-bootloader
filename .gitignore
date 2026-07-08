@@ -1,0 +1,20 @@
+# Build directories
+Debug/
+Release/
+
+# Build artifacts
+*.o
+*.d
+*.su
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+
+# Temporary files
+*.tmp
+
+# Windows
+Thumbs.db
+Desktop.ini
