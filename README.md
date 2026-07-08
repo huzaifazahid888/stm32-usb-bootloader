@@ -98,6 +98,3 @@ STM32F4
 - Secure firmware authentication
 - Progress indication while programming
 
-## License
-
-MIT.
