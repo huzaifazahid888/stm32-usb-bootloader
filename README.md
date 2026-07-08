@@ -87,7 +87,7 @@ UART prints out what's happening at each step: USB detection, drive mounting, wh
 
 ## Tested on
 
-STM32F4
+STM32F407 Discovery Board
 
 ## Possible improvements
 
