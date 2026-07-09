@@ -1,6 +1,6 @@
 # STM32 USB Host Bootloader
 
-A USB Host bootloader for STM32F4 that updates firmware straight from a USB flash drive, using FATFS to read the binary image off the drive. Plug in a USB stick with the new firmware, power the board, and the bootloader takes care of the rest: it checks if the firmware on the drive is actually different from what's already flashed, and only reprograms if it needs to.
+A USB Host bootloader for STM32F4 that updates firmware straight from a USB flash drive, using FATFS to read the binary image off the drive. Plug in a USB stick with the new firmware binary file, power the board, and the bootloader takes care of the rest: it checks if the firmware on the drive is actually different from what's already flashed, and only reprograms if it needs to.
 
 ## What it does
 
@@ -10,7 +10,6 @@ A USB Host bootloader for STM32F4 that updates firmware straight from a USB flas
 - Erases and reprograms flash only if an update is actually needed
 - Jumps to the user application afterward, or immediately if no USB drive is found
 - Reports status over UART and through an LED
-- Built entirely on STM32 HAL
 
 ## Repository Structure
 
@@ -70,12 +69,10 @@ Jump to App    Erase Flash
 
 ## Updating firmware
 
-1. Copy the application binary onto a USB flash drive.
-2. Rename it to `BLINK.BIN`.
-3. Insert the drive into the board.
-4. Power on the board.
-
-From there it's automatic: the bootloader detects the drive, mounts the filesystem, opens the firmware file, compares it against what's installed, programs flash if needed, and launches the application. If there's no USB drive plugged in at all, it just boots straight into whatever's already flashed.
+- Copy the application binary onto a USB flash drive.
+- Rename it to `BLINK.BIN`.
+- Insert the drive into the board.
+- Power on the board / Reset the board if it's already powerd.
 
 ## Flash programming
 
