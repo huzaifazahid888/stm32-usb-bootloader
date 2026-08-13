@@ -1,48 +1,6 @@
-/**
- ******************************************************************************
- * @file    IAP_Main/Src/flash_if.c
- * @author  MCD Application Team
- * @version 1.0.0
- * @date    8-April-2015
- * @brief   This file provides all the memory related operation functions.
- ******************************************************************************
- * @attention
- *
- * <h2><center>&copy; COPYRIGHT(c) 2015 STMicroelectronics</center></h2>
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of STMicroelectronics nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************
- */
-
-/** @addtogroup STM32F4xx_IAP
- * @{
- */
-
 #include "flash_if.h"
 #include "main.h"
-#include <string.h>
-#include <stdio.h>
+
 static uint32_t GetSector(uint32_t Address);
 
 /* Clear flags */
@@ -60,14 +18,12 @@ void FLASH_If_Init(void)
   * @retval 0: Erase sectors done with success
   *         1: Erase error
   */
-char msg1[100];
 uint32_t FLASH_If_EraseSectors(uint32_t endAddress)
 {
   uint32_t FirstSector, NbOfSectors, SectorError;
   FLASH_EraseInitTypeDef FLASH_EraseInitStruct;
 
- // if(endAddress <= FLASH_LAST_ADDR)
-  {
+
     FirstSector = GetSector(FLASH_USER_START_ADDR);
     NbOfSectors = GetSector(endAddress) - FirstSector + 1;
 
@@ -80,20 +36,9 @@ uint32_t FLASH_If_EraseSectors(uint32_t endAddress)
     {
       return FLASHIF_ERASEKO;
     }
-	debug("\r\n");
-	debug("Flash First Reasing sector for Application: ");
-	sprintf(msg1,"%d",(int)FirstSector);
-	debug(msg1);
-	debug("\r\n");
-	debug("Total Sectors erased for Application: ");
-	sprintf(msg1,"%d",(int)NbOfSectors);
-	debug(msg1);
-	debug("\r\n");
 
     return FLASHIF_OK;
-  }
 
-  return FLASHIF_ERASEKO;
 }
 
 /* Check write protection */
@@ -148,6 +93,31 @@ uint32_t FLASH_If_WriteProtectionConfig(uint32_t protectionstate)
 	}
 }
 
+uint32_t FLASH_If_ReadProtectionConfig(uint32_t protectionstate)
+{
+    FLASH_OBProgramInitTypeDef OBInit = {0};
+    HAL_StatusTypeDef status = HAL_OK;
+
+    HAL_FLASH_OB_Unlock();
+    HAL_FLASH_Unlock();
+
+    /* Configure read protection */
+    OBInit.OptionType = OPTIONBYTE_RDP;
+
+    if (protectionstate == FLASHIF_RDP_ENABLE) OBInit.RDPLevel = OB_RDP_LEVEL_1;
+    else OBInit.RDPLevel = OB_RDP_LEVEL_0;
+
+    status = HAL_FLASHEx_OBProgram(&OBInit);
+
+    if (status == HAL_OK) status = HAL_FLASH_OB_Launch();
+
+    HAL_FLASH_OB_Lock();
+    HAL_FLASH_Lock();
+
+    if (status != HAL_OK) return FLASHIF_PROTECTION_ERRROR;
+
+    return FLASHIF_OK;
+}
 /* Get sector number by address */
 static uint32_t GetSector(uint32_t Address)
 {
@@ -204,8 +174,4 @@ static uint32_t GetSector(uint32_t Address)
 
 	return sector;
 }
-/**
- * @}
- */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

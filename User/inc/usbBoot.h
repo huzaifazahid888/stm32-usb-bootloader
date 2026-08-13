@@ -1,0 +1,24 @@
+/*
+ * usbBoot.h
+ *
+ *  Created on: Aug 6, 2026
+ *      Author: Muhammad Huzaifa
+ */
+
+#ifndef INC_USBBOOT_H_
+#define INC_USBBOOT_H_
+#include "stdio.h"
+#include "fatfs.h"
+#define APP_BLOCK_TRANSFER_SIZE 512
+#define SIZE_OF_U32 4
+
+extern FIL myFile;
+extern uint8_t appBuffer[512];
+extern uint32_t appSize;
+extern unsigned int  readBytes;
+void jumpcode();
+void CopyAppToUserMemory(void);
+bool IsApplicationValid(void);
+void PrintProgrammingProgress(uint32_t currentBytes, uint32_t totalBytes);
+
+#endif /* INC_USBBOOT_H_ */
