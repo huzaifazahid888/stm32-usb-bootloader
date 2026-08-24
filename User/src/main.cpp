@@ -13,9 +13,8 @@
 FATFS myUsbFatFS;
 extern char USBHPath[4];   /* USBH logical drive path */
 extern ApplicationTypeDef Appli_state;
-bool usbDetected = false;
 
-char msg[100];
+bool usbDetected = false;
 bool updatePerformed = false;
 bool firmwareIdentical = false;
 

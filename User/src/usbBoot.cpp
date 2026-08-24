@@ -18,23 +18,27 @@ unsigned int  readBytes;
 void jumpcode()
 {// jump to the application
 
-	if (((*(__IO uint32_t*)FLASH_USER_START_ADDR) & 0x2FFD0000 ) == 0x20000000)
-		  {
-				// Jump to user application
-				JumpAddress = *(__IO uint32_t*) (FLASH_USER_START_ADDR + 4);
+	if (((*(volatile uint32_t*) FLASH_USER_START_ADDR) & 0x2FFD0000) == 0x20000000)
+	{
+		// Jump to user application
+		JumpAddress = *(volatile uint32_t*) (FLASH_USER_START_ADDR + 4);
+		JumpToApplication = (pFunction) JumpAddress;
 
-				JumpToApplication = (pFunction) JumpAddress;
-				// Initialize user application's Stack Pointer
-				__set_MSP(*(__IO uint32_t*) FLASH_USER_START_ADDR);
-				SCB->VTOR = FLASH_USER_START_ADDR;
+		// Reset peripherals
+		HAL_RCC_DeInit();
+		HAL_DeInit();
+		//__disable_irq();
 
-				HAL_RCC_DeInit();
-				HAL_DeInit();
-				//__disable_irq();
+		// Reset Systick
+		SysTick->CTRL = 0;  // Disable SysTick
+		SysTick->VAL = 0;   // Reset current value
+		SysTick->LOAD = 0;  // Reset reload value
 
-				JumpToApplication();
+		SCB->VTOR = FLASH_USER_START_ADDR;
+		__set_MSP(*(volatile uint32_t*) FLASH_USER_START_ADDR);// Initialize user application's Stack Pointer
 
-			}
+		JumpToApplication();
+	}
 }
 
 void CopyAppToUserMemory(void)
