@@ -1,5 +1,5 @@
 #include "flash_if.h"
-#include "main.h"
+#include "bootConfig.h"
 
 static uint32_t GetSector(uint32_t Address);
 

@@ -11,7 +11,7 @@ void GPIO_Init(void) {
 	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
 
 	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOD, GREEN_LED_Pin|ORANGE_LED_Pin|RED_LED_Pin|BLUE_LED_Pin, GPIO_PIN_RESET);
+	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14, GPIO_PIN_RESET);
 
 	  /*Configure GPIO pin : PC0 */
 	  GPIO_InitStruct.Pin = GPIO_PIN_0;
@@ -27,7 +27,7 @@ void GPIO_Init(void) {
 	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 	  /*Configure GPIO pins : GREEN_LED_Pin ORANGE_LED_Pin RED_LED_Pin BLUE_LED_Pin */
-	  GPIO_InitStruct.Pin = GREEN_LED_Pin|ORANGE_LED_Pin|RED_LED_Pin|BLUE_LED_Pin;
+	  GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14;
 	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	  GPIO_InitStruct.Pull = GPIO_NOPULL;
 	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -81,7 +81,7 @@ uint8_t gpioReadPin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 
 void toggleLed()
 {
-	HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
 }
 
 void enablePortsClock(void) {

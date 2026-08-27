@@ -165,4 +165,14 @@ void Serial::println(float number, unsigned char digits)
 	uartWrite(huart, '\n');
 }
 
+void Serial::printHex(uint32_t n)
+{
+    printNumber((unsigned long)n, 16);
+}
+
+void Serial::printlnHex(uint32_t n)
+{
+    printHex(n);
+    uartWrite(huart, '\n');
+}
 

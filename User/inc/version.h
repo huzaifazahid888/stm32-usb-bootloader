@@ -6,7 +6,7 @@
 
 
 /* Version 1.0
- *               By Muhammad Huzaifa Zahid
+ *               By Muhammad Huzaifa
  */
 
 #endif /* INC_VERSION_H_ */

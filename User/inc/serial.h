@@ -31,6 +31,10 @@ public:
 	void println(int n);
 	void println(float number, unsigned char digits=2);
 
+
+    void printHex(uint32_t n);
+    void printlnHex(uint32_t n);
+
 };
 
 extern Serial serial;

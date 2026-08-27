@@ -27,7 +27,7 @@ extern "C" {
 #define ADDR_FLASH_SECTOR_11    ((uint32_t)0x080E0000) /* Base @ of Sector 11, 128 Kbytes */
 
 
-#define USER_WRP_SECTORS         (OB_WRP_SECTOR_2 | OB_WRP_SECTOR_3 | OB_WRP_SECTOR_4 | OB_WRP_SECTOR_5)
+#define USER_WRP_SECTORS       (OB_WRP_SECTOR_2 | OB_WRP_SECTOR_3 | OB_WRP_SECTOR_4 | OB_WRP_SECTOR_5)
 #define FLASHIF_RDP_ENABLE     1U
 #define FLASHIF_RDP_DISABLE    0U
 /* Error code */

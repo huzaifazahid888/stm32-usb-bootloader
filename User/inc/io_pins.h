@@ -25,11 +25,4 @@
 #define INPUT_IT_BOTH          7
 
 
-#define LED_PIN           GPIO_PIN_15
-#define LED_PORT	      GPIOD
-
-
-
-
-
 #endif

@@ -1,6 +1,7 @@
 #include "usbBoot.h"
 #include "serial.h"
 #include "flash_if.h"
+#include "bootConfig.h"
 
 typedef  void (*pFunction)(void);
 pFunction JumpToApplication;
@@ -9,7 +10,7 @@ uint32_t appSize;
 uint8_t appBuffer[512];
 
 FIL myFile;
-FRESULT res;
+FRESULT fRes;
 UINT byteswritten, bytesread;
 
 unsigned int i;
@@ -50,7 +51,7 @@ void CopyAppToUserMemory(void)
 
 	serial.println("Copy application code...");
 
-	f_lseek(&myFile, 0); //Go to the fist position of file
+	f_lseek(&myFile, HEADER_OFFSET); //Go to the fist position of file
 	appTailSize = appSize % APP_BLOCK_TRANSFER_SIZE;
 	appBodySize = appSize - appTailSize;
 	appAddrPointer = 0;
@@ -109,6 +110,22 @@ void CopyAppToUserMemory(void)
 	serial.println("");
 	//FLASH_WaitForLastOperation(100);
 	HAL_FLASH_Lock();
+}
+
+void flashEraseApplication(void)
+{
+    uint32_t endAddr = FLASH_USER_START_ADDR + appSize;
+    serial.println("CRC failed!");
+    serial.println("Erasing invalid application...");
+
+    HAL_FLASH_Unlock();
+
+    if (FLASH_If_EraseSectors(endAddr) != 0x00)
+    {
+        serial.println("Application erase failed!");
+    }
+
+    HAL_FLASH_Lock();
 }
 
 bool IsApplicationValid(void)

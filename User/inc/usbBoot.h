@@ -1,7 +1,5 @@
 /*
  * usbBoot.h
- *
- *  Created on: Aug 6, 2026
  *      Author: Muhammad Huzaifa
  */
 
@@ -14,10 +12,12 @@
 
 extern FIL myFile;
 extern uint8_t appBuffer[512];
-extern uint32_t appSize;
 extern unsigned int  readBytes;
+extern uint32_t appSize;
+extern FRESULT fRes;
 void jumpcode();
 void CopyAppToUserMemory(void);
+void flashEraseApplication(void);
 bool IsApplicationValid(void);
 void PrintProgrammingProgress(uint32_t currentBytes, uint32_t totalBytes);
 
