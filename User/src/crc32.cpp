@@ -11,9 +11,13 @@ uint32_t crc32(const uint8_t *data, uint32_t length)
         for (uint8_t j = 0; j < 8; j++)
         {
             if (crc & 1)
-                crc = (crc >> 1) ^ 0xEDB88320;
+            {
+            	crc = (crc >> 1) ^ 0xEDB88320;
+            }
             else
-                crc >>= 1;
+            {
+            	crc >>= 1;
+            }
         }
     }
 

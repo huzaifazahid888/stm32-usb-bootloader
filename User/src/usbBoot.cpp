@@ -1,7 +1,8 @@
 #include "usbBoot.h"
 #include "serial.h"
 #include "flash_if.h"
-#include "bootConfig.h"
+#include "usb_host.h"
+#include "crc32.h"
 
 typedef  void (*pFunction)(void);
 pFunction JumpToApplication;
@@ -16,26 +17,50 @@ UINT byteswritten, bytesread;
 unsigned int i;
 unsigned int  readBytes;
 
+// jump to the application
 void jumpcode()
-{// jump to the application
+{
+	uint32_t appStackAddress;
+	uint32_t appResetHandler;
 
-	if (((*(volatile uint32_t*) FLASH_USER_START_ADDR) & 0x2FFD0000) == 0x20000000)
+	appStackAddress = *(volatile uint32_t*) FLASH_USER_START_ADDR;
+	appResetHandler = *(volatile uint32_t*) (FLASH_USER_START_ADDR + 4);
+
+	// Check if there is valid code in flash (Stack pointer pointing to SRAM, 128K of SRAM)
+	//if ((appStackAddress & 0x2FFD0000) == 0x20000000)
+	if ((appStackAddress >= 0x20000000UL) && (appStackAddress <=  0x20020000UL))
 	{
 		// Jump to user application
-		JumpAddress = *(volatile uint32_t*) (FLASH_USER_START_ADDR + 4);
-		JumpToApplication = (pFunction) JumpAddress;
+		JumpToApplication = (pFunction) appResetHandler;
 
 		// Reset peripherals
-		HAL_RCC_DeInit();
+		DeInit_Usb();
+		HAL_UART_DeInit(&huart3);
 		HAL_DeInit();
-		//__disable_irq();
+		HAL_RCC_DeInit();
 
-		// Reset Systick
+		/*
+		 * Stop Systick and NVIC interruptsi
+		 * it is recommended to disable glabal irq, then in application code must enable it,
+		 * otherwise interrupt base operation will not work
+		 */
+		__disable_irq();
 		SysTick->CTRL = 0;  // Disable SysTick
 		SysTick->VAL = 0;   // Reset current value
 		SysTick->LOAD = 0;  // Reset reload value
 
+		for (uint8_t i=0; i<8; i++)
+		{
+			NVIC->ICER[i]= 0xffffffffU;//Disable all interrupts
+			NVIC->ICPR[i]= 0xffffffffU;//Clear all pending interrupts
+		}
+
 		SCB->VTOR = FLASH_USER_START_ADDR;
+		/*
+		 *BOOT start from the default but for application provide the offset
+		 *SCB -> System control block register(ARM cortex reg.)
+		 *VTOR-> vector table offset register
+		 */
 		__set_MSP(*(volatile uint32_t*) FLASH_USER_START_ADDR);// Initialize user application's Stack Pointer
 
 		JumpToApplication();
@@ -49,9 +74,11 @@ void CopyAppToUserMemory(void)
 
 	HAL_FLASH_Unlock();
 
-	serial.println("Copy application code...");
-
-	f_lseek(&myFile, HEADER_OFFSET); //Go to the fist position of file
+	f_lseek(&myFile, HEADER_LENGTH); //pointer to start of application
+	if (f_lseek(&myFile, HEADER_LENGTH) != FR_OK)
+	{
+	    serial.println("Application Seek Error!"); return;
+	}
 	appTailSize = appSize % APP_BLOCK_TRANSFER_SIZE;
 	appBodySize = appSize - appTailSize;
 	appAddrPointer = 0;
@@ -59,11 +86,14 @@ void CopyAppToUserMemory(void)
 	serial.print("AppBodySize :"); serial.println((int)appBodySize);
 	serial.print("AppTailSize :"); serial.println((int)appTailSize);
 
-	uint32_t endAddr = FLASH_USER_START_ADDR + appSize;
+	uint32_t startAddress = FLASH_USER_START_ADDR;
+	uint32_t endAddress = FLASH_USER_START_ADDR + appSize;
 
-	if(FLASH_If_EraseSectors(endAddr) != 0x00)
+	if(FLASH_If_EraseSectors(startAddress,endAddress) != 0x00)
 	{
-		while(1) {serial.println("Erase Sector Error!!");}
+		serial.println("Erase Sector Error!!");
+		HAL_FLASH_Lock();
+	    Error_Handler();
 	}
 	else
 	{
@@ -79,20 +109,33 @@ void CopyAppToUserMemory(void)
 		 * "body" = 2 * 512, "tail" = 6
 		 * Let's write "body" and "tail" to MCU FLASH byte after byte with 512-byte blocks
 		 */
-		f_read(&myFile, appBuffer, APP_BLOCK_TRANSFER_SIZE, &readBytes); //Read 512 byte from file
+		if(f_read(&myFile, appBuffer, APP_BLOCK_TRANSFER_SIZE, &readBytes) != FR_OK)//Read 512 byte from file
+		{
+			serial.print("AppBody Read Error! ");
+			f_close(&myFile);
+			HAL_FLASH_Lock();
+			Error_Handler();
+		}
 		for(j = 0; j < APP_BLOCK_TRANSFER_SIZE; j += SIZE_OF_U32) //write 512 byte to FLASH
 		{
-			if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,FLASH_USER_START_ADDR + i + j, *((volatile uint32_t*)(appBuffer + j))) !=0)
+			if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,FLASH_USER_START_ADDR + i + j, *((volatile uint32_t*)(appBuffer + j))) !=HAL_OK)
 			{
-				while(1) {serial.println("Flash body program Error!!");}
+				serial.println("Flash body program Error!!");
+				HAL_FLASH_Lock();
+				Error_Handler();
 			}
 		}
 		appAddrPointer += APP_BLOCK_TRANSFER_SIZE; //pointer to current position in FLASH for write
-
-		PrintProgrammingProgress(i + APP_BLOCK_TRANSFER_SIZE, appSize);
 	}
 
-	f_read(&myFile, appBuffer, appTailSize, &readBytes); //Read "tail" that < 512 bytes from file
+	if(f_read(&myFile, appBuffer, appTailSize, &readBytes) != FR_OK) //Read "tail" that < 512 bytes from file
+	{
+		serial.print("AppTail Read Error! ");
+		f_close(&myFile);
+		HAL_FLASH_Lock();
+		Error_Handler();
+
+	}
 	while((appTailSize % SIZE_OF_U32) != 0)		//if appTailSize MOD 4 != 0 (seems not possible, but still...)
 	{
 		appTailSize++;				//increase the tail to a multiple of 4
@@ -101,48 +144,167 @@ void CopyAppToUserMemory(void)
 
 	for(i = 0; i < appTailSize; i += SIZE_OF_U32) //write "tail" to FLASH
 	{
-		if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,FLASH_USER_START_ADDR + appAddrPointer + i, *((volatile uint32_t*)(appBuffer + i))) !=0)
+		if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,FLASH_USER_START_ADDR + appAddrPointer + i, *((volatile uint32_t*)(appBuffer + i))) !=HAL_OK)
 		{
-			while(1) {serial.println("Flash tail program Error!!");}
+			serial.println("Flash tail program Error!!");
+			HAL_FLASH_Lock();
+	        Error_Handler();
 		}
 	}
-	PrintProgrammingProgress(appSize, appSize);
+
 	serial.println("");
 	//FLASH_WaitForLastOperation(100);
 	HAL_FLASH_Lock();
 }
 
+void copyHeaderToMemory()
+{
+	if (f_lseek(&myFile, 0) != FR_OK)
+	{
+	    serial.println("Header Seek Error!"); return;
+	}
+
+	if(f_read(&myFile, appBuffer, HEADER_LENGTH, &readBytes) != FR_OK)
+	{
+		serial.print("Header Read Error! ");
+		f_close(&myFile);
+		Error_Handler();
+	}
+
+    if (memcmp(appBuffer, (void *)FLASH_RESERVED_START_ADDR,HEADER_LENGTH) != 0)
+    {
+    	HAL_FLASH_Unlock();
+
+    	uint32_t startAddress = FLASH_RESERVED_START_ADDR;
+		uint32_t endAddress = FLASH_RESERVED_START_ADDR + HEADER_LENGTH;
+
+		if (FLASH_If_EraseSectors(startAddress,endAddress) != 0x00)
+		{
+			serial.println("Erase Sector Error!!");
+			HAL_FLASH_Lock();
+			Error_Handler();
+
+		}
+
+		for (i = 0; i < HEADER_LENGTH; i += SIZE_OF_U32) //write "header" to FLASH
+		{
+			if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,FLASH_RESERVED_START_ADDR + i,*((volatile uint32_t*) (appBuffer + i))) != HAL_OK)
+			{
+				serial.println("Header programming error!");
+				HAL_FLASH_Lock();
+	            Error_Handler();
+			}
+		}
+		HAL_FLASH_Lock();
+		serial.println("Header programmed successfully.");
+	}
+}
+
+void parseHeader(AppHeader_t *h)
+{
+	if (f_lseek(&myFile, 0) != FR_OK)
+	{
+	    serial.println("Header Seek Error!"); return;
+	}
+
+    if (f_read(&myFile, appBuffer, HEADER_LENGTH, &readBytes) != FR_OK || readBytes != HEADER_LENGTH)
+    {
+        serial.println("Application header read error!");
+        f_close(&myFile);
+        Error_Handler();
+    }
+
+    h->magicNumber = ((uint32_t)appBuffer[0]) | ((uint32_t)appBuffer[1] << 8) | ((uint32_t)appBuffer[2] << 16) | ((uint32_t)appBuffer[3] << 24);
+    h->version     = ((uint32_t)appBuffer[4]) | ((uint32_t)appBuffer[5] << 8) | ((uint32_t)appBuffer[6] << 16) | ((uint32_t)appBuffer[7] << 24);
+    h->imageSize   = ((uint32_t)appBuffer[8]) | ((uint32_t)appBuffer[9] << 8) | ((uint32_t)appBuffer[10] << 16)| ((uint32_t)appBuffer[11] << 24);
+    h->app_crc     = ((uint32_t)appBuffer[12])| ((uint32_t)appBuffer[13] << 8)| ((uint32_t)appBuffer[14] << 16)| ((uint32_t)appBuffer[15] << 24);
+
+    serial.print("Magic No: 0x"); serial.printlnHex(h->magicNumber);
+    serial.print("Version: ");    serial.println((int)h->version);
+    serial.print("Image Size: "); serial.println((int)h->imageSize);
+    serial.print("APP_CRC: 0x");  serial.printlnHex(h->app_crc);
+
+}
+
+uint32_t calCrc()
+{
+	uint32_t cal_crc = 0;
+
+	cal_crc = crc32((const uint8_t*) FLASH_USER_START_ADDR, appSize);
+	serial.print("CAL_CRC: 0x");
+	serial.printlnHex(cal_crc);
+
+	return cal_crc;
+}
+
 void flashEraseApplication(void)
 {
-    uint32_t endAddr = FLASH_USER_START_ADDR + appSize;
-    serial.println("CRC failed!");
-    serial.println("Erasing invalid application...");
-
     HAL_FLASH_Unlock();
 
-    if (FLASH_If_EraseSectors(endAddr) != 0x00)
-    {
-        serial.println("Application erase failed!");
-    }
+	uint32_t startAddress = FLASH_USER_START_ADDR;
+	uint32_t endAddress = FLASH_USER_START_ADDR + appSize;
+
+	if (FLASH_If_EraseSectors(startAddress,endAddress) != 0x00)
+	{
+		serial.println("Erase Sector Error!!");
+		HAL_FLASH_Lock();
+		Error_Handler();
+	}
 
     HAL_FLASH_Lock();
 }
 
-bool IsApplicationValid(void)
+uint8_t validStoredApp(void)
 {
+#ifdef USE_APPLICATION_HEADER
+
+    AppHeader_t storedHeader;
+    uint32_t cal_crc;
     uint32_t appStackAddress;
-    uint32_t appResetHandler;
+    appStackAddress = *(volatile uint32_t*) FLASH_USER_START_ADDR;
 
-    appStackAddress = *(__IO uint32_t*)FLASH_USER_START_ADDR;
-    appResetHandler = *(__IO uint32_t*)(FLASH_USER_START_ADDR + 4);
+	if ((appStackAddress & 0x2FFD0000) != 0x20000000)
+	{
+		serial.println("No valid application found"); return 1;
+	}
+    //Read header from reserved Flash
+    storedHeader.magicNumber = *(volatile uint32_t *)(FLASH_RESERVED_START_ADDR + 0);
+    storedHeader.version     = *(volatile uint32_t *)(FLASH_RESERVED_START_ADDR + 4);
+    storedHeader.imageSize   = *(volatile uint32_t *)(FLASH_RESERVED_START_ADDR + 8);
+    storedHeader.app_crc     = *(volatile uint32_t *)(FLASH_RESERVED_START_ADDR + 12);
 
-    //Check application's initial stack pointer
-    if ((appStackAddress & 0x2FFD0000U) != 0x20000000U)  return false;
-    //Check application's reset handler address
-    if ((appResetHandler < FLASH_USER_START_ADDR) || (appResetHandler >= FLASH_LAST_ADDR))  return false;
+    /* Header validation */
+    if (storedHeader.magicNumber != MAGIC_NUMBER)
+    {
+        serial.println("Invalid application magic!"); return 2;
+    }
 
-    return true;
+    if (storedHeader.imageSize == 0 || storedHeader.imageSize > FLASH_USER_SIZE)
+    {
+        serial.println("Invalid application size!"); return 3;
+    }
+
+    //Calculate CRC from actual application in Flash
+    cal_crc = crc32((const uint8_t *)FLASH_USER_START_ADDR,storedHeader.imageSize);
+    if (cal_crc != storedHeader.app_crc)
+    {
+        serial.println("Stored application CRC mismatch!"); return 4;
+    }
+
+    serial.println("Stored application is valid.");
+    return 0;
+#else
+    uint32_t appStackAddress;
+    appStackAddress = *(volatile uint32_t*) FLASH_USER_START_ADDR;
+
+	if ((appStackAddress & 0x2FFD0000) != 0x20000000)
+	{
+		serial.println("No valid application found"); return 1;
+	}
+    return 0;
+#endif
 }
+
 
 void PrintProgrammingProgress(uint32_t currentBytes, uint32_t totalBytes)
 {

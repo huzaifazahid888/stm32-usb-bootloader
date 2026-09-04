@@ -14,17 +14,16 @@ void FLASH_If_Init(void)
 
 /**
   * @brief  Erases the required FLASH Sectors.
-  * @param  Address: Start address for erasing data
   * @retval 0: Erase sectors done with success
   *         1: Erase error
   */
-uint32_t FLASH_If_EraseSectors(uint32_t endAddress)
+
+uint32_t FLASH_If_EraseSectors(uint32_t startAddress, uint32_t endAddress)
 {
-  uint32_t FirstSector, NbOfSectors, SectorError;
-  FLASH_EraseInitTypeDef FLASH_EraseInitStruct;
+    uint32_t FirstSector, NbOfSectors, SectorError;
+    FLASH_EraseInitTypeDef FLASH_EraseInitStruct;
 
-
-    FirstSector = GetSector(FLASH_USER_START_ADDR);
+    FirstSector = GetSector(startAddress);
     NbOfSectors = GetSector(endAddress) - FirstSector + 1;
 
     FLASH_EraseInitStruct.TypeErase = FLASH_TYPEERASE_SECTORS;
@@ -32,13 +31,12 @@ uint32_t FLASH_If_EraseSectors(uint32_t endAddress)
     FLASH_EraseInitStruct.NbSectors = NbOfSectors;
     FLASH_EraseInitStruct.VoltageRange = FLASH_VOLTAGE_RANGE_3;
 
-    if(HAL_FLASHEx_Erase(&FLASH_EraseInitStruct, &SectorError) != HAL_OK)
+    if (HAL_FLASHEx_Erase(&FLASH_EraseInitStruct, &SectorError) != HAL_OK)
     {
-      return FLASHIF_ERASEKO;
+        return FLASHIF_ERASEKO;
     }
 
     return FLASHIF_OK;
-
 }
 
 /* Check write protection */

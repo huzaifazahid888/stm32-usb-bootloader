@@ -97,7 +97,14 @@ void MX_USB_HOST_Process(void)
 {
   /* USB Host Background task */
   USBH_Process(&hUsbHostFS);
+
 }
+
+void DeInit_Usb()
+{
+	  USBH_DeInit(&hUsbHostFS);
+}
+
 /*
  * user callback definition
  */

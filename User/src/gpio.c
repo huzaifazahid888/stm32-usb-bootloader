@@ -2,37 +2,15 @@
 #include "gpio.h"
 
 
-void GPIO_Init(void) {
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
-
+void GPIO_Init(void)
+{
+	//GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 	enablePortsClock(); //GPIO Ports Clock Enable
+	setPinMode(GPIOD,GPIO_PIN_12,OUTPUT);
+	setPinMode(GPIOC,GPIO_PIN_0,OUTPUT);//for usb power related
 
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
-
-	  /*Configure GPIO pin Output Level */
-	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14, GPIO_PIN_RESET);
-
-	  /*Configure GPIO pin : PC0 */
-	  GPIO_InitStruct.Pin = GPIO_PIN_0;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-	  /*Configure GPIO pin : PA0 */
-	  GPIO_InitStruct.Pin = GPIO_PIN_0;
-	  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-	  /*Configure GPIO pins : GREEN_LED_Pin ORANGE_LED_Pin RED_LED_Pin BLUE_LED_Pin */
-	  GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14;
-	  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
+	gpioWritePin(GPIOD,GPIO_PIN_12,GPIO_PIN_RESET);
+	gpioWritePin(GPIOC,GPIO_PIN_0,GPIO_PIN_RESET);
 }
 
 
@@ -78,30 +56,32 @@ uint8_t gpioReadPin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 	return 0;
 }
 
-
 void toggleLed()
 {
 	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
 }
 
-void enablePortsClock(void) {
-
-	__HAL_RCC_GPIOE_CLK_ENABLE();
-	__HAL_RCC_GPIOH_CLK_ENABLE();
+void enablePortsClock(void)
+{
+	//__HAL_RCC_GPIOE_CLK_ENABLE();
+	//__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	__HAL_RCC_GPIOC_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 }
-void GPIOE_EnableVeryHighSpeed(void) {
+void GPIOE_EnableVeryHighSpeed(void)
+{
 	GPIOE->OSPEEDR = 0xFFFFFFFF; // Set (PE0..PE15) to very high speed (11b per pin)
 }
 
-void setPinMode(GPIO_TypeDef *port, uint16_t pNumber, uint8_t mode) {
+void setPinMode(GPIO_TypeDef *port, uint16_t pNumber, uint8_t mode)
+{
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = pNumber;
 
-    switch(mode) {
+    switch(mode)
+    {
         case OUTPUT:
             GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP; // push pull
             GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -133,11 +113,13 @@ void setPinMode(GPIO_TypeDef *port, uint16_t pNumber, uint8_t mode) {
     HAL_GPIO_Init(port, &GPIO_InitStruct);
 }
 
-void pinModeInterrupt(GPIO_TypeDef *port, uint16_t pNumber, uint8_t edge) {
+void pinModeInterrupt(GPIO_TypeDef *port, uint16_t pNumber, uint8_t edge)
+{
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = pNumber;
 
-    switch(edge){
+    switch(edge)
+    {
 
     case   INPUT_IT_RISING:
     GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
@@ -160,7 +142,8 @@ void pinModeInterrupt(GPIO_TypeDef *port, uint16_t pNumber, uint8_t edge) {
 
     // Enable EXTI line in NVIC
     IRQn_Type irq;
-    switch(pNumber) {
+    switch(pNumber)
+    {
         case GPIO_PIN_0: irq = EXTI0_IRQn; break;
         case GPIO_PIN_1: irq = EXTI1_IRQn; break;
         case GPIO_PIN_2: irq = EXTI2_IRQn; break;

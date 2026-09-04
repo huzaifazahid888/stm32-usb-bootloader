@@ -11,6 +11,7 @@ extern "C" {
 
 void Error_Handler(void);
 
+void uartTransCmplt();
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

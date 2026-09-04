@@ -72,7 +72,7 @@ typedef enum {
 void MX_USB_HOST_Init(void);
 
 void MX_USB_HOST_Process(void);
-
+void DeInit_Usb();
 /**
   * @}
   */

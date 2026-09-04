@@ -63,7 +63,7 @@ uint32_t FLASH_If_GetWriteProtectionStatus(void);
 uint32_t FLASH_If_Write(uint32_t destination, uint32_t *p_source, uint32_t length);
 uint32_t FLASH_If_WriteProtectionConfig(uint32_t modifier);
 uint32_t FLASH_If_ReadProtectionConfig(uint32_t protectionstate);
-uint32_t FLASH_If_EraseSectors(uint32_t Address);
+uint32_t FLASH_If_EraseSectors(uint32_t startAddress, uint32_t endAddress);
 
 #ifdef __cplusplus
 }
