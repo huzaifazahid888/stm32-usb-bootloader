@@ -2,7 +2,7 @@
 
 A custom USB Host bootloader for STM32F4 that updates firmware directly from a USB flash drive.
 
-The bootloader uses USB Host Mass Storage (MSC) and FATFS to read a firmware `.bin` file from the USB drive. It checks the firmware header, compares the firmware with the application already stored in Flash, verifies the application using CRC, and only performs a firmware update when required.
+The bootloader uses USB Host Mass Storage (MSC) and FATFS to read a firmware `.bin` file from the USB drive. It can work with or without an application header. When the header is enabled, it checks the firmware header, compares the firmware with the application already stored in Flash, verifies the application using CRC, and only performs a firmware update when required.
 
 After the update or verification is complete, the bootloader jumps to the user application.
 
@@ -10,20 +10,40 @@ After the update or verification is complete, the bootloader jumps to the user a
 
 * Detects a USB flash drive using USB Host MSC
 * Reads the firmware `.bin` file using FATFS
-* Reads and validates the application header
-* Checks firmware magic number, version, and image size
+* Optionally reads and validates the application header
+* Checks firmware magic number, version, and image size when header support is enabled
 * Compares the USB firmware with the firmware already stored in Flash
 * Erases and programs Flash only when a new firmware image is detected
-* Calculates and verifies the application CRC after programming
+* Optionally calculates and verifies the application CRC
 * Stores the validated application header in a reserved Flash sector
 * Checks the application stack pointer before jumping to the user application
 * Relocates the interrupt vector table to the application address
 * Jumps to the existing application when no USB drive is detected
 * Reports the bootloader status and errors over UART
 
+## Bootloader Configuration
+
+The main bootloader configuration is handled from:
+
+```text
+User/inc/bootConfig.h
+```
+
+Application header and CRC support can be enabled or disabled from the configuration.
+
+```c
+#define USE_APPLICATION_HEADER
+```
+
+When `USE_APPLICATION_HEADER` is enabled, the bootloader expects the firmware file to contain a 16-byte application header followed by the application binary. The header is checked before programming and the application CRC is verified after programming.
+
+When `USE_APPLICATION_HEADER` is disabled, the bootloader works with a normal `.bin` firmware file without the application header.
+
+This allows the same bootloader to be used with or without header-based firmware validation.
+
 ## Firmware File
 
-The firmware file contains a 16-byte application header followed by the application binary.
+When application header support is enabled, the firmware file contains a 16-byte application header followed by the application binary.
 
 ```text
 +------------------------------+
@@ -39,6 +59,8 @@ The firmware file contains a 16-byte application header followed by the applicat
 ```
 
 The header is used by the bootloader to identify and validate the firmware before programming it.
+
+When application header support is disabled, the firmware file contains only the application binary.
 
 ## Flash Memory Map
 
@@ -70,7 +92,7 @@ The application starts at:
 0x08020000
 ```
 
-The reserved sector is used to store the header of the last successfully validated application.
+The reserved sector is used to store the header of the last successfully validated application when header support is enabled.
 
 ## Bootloader Workflow
 
@@ -97,10 +119,10 @@ The reserved sector is used to store the header of the last successfully validat
           Open Firmware File       Validate App
                  │                     │
                  ▼                     ▼
-          Read Application Header   Check CRC
+       Read Header (if enabled)   Check CRC
                  │                     │
                  ▼                     ▼
-          Validate Header           Jump to App
+       Validate Header             Jump to App
                  │
                  ▼
        Compare USB Firmware
@@ -110,16 +132,17 @@ The reserved sector is used to store the header of the last successfully validat
         Identical      Different
             │            │
             ▼            ▼
-       Jump to App    Erase Flash
+       Jump to App  Erase Flash
                          │
                          ▼
-                     Program Flash
+                    Program Flash
                           │
                           ▼
                      Verify CRC
                           │
                           ▼
-                    Store App Header
+                  Store App Header
+                    (if enabled)
                           │
                           ▼
                      Jump to App
@@ -196,13 +219,13 @@ Handles CRC calculation used for firmware validation.
 
 Contains the main bootloader configuration such as Flash addresses, Flash sizes, application start address, reserved memory, header length, and other bootloader settings.
 
-The memory layout can be changed from the configuration file without changing the main bootloader logic.
+The memory layout and optional header support can be changed from the configuration file without changing the main bootloader logic.
 
 ## Updating Firmware
 
 1. Build the application firmware.
-2. Generate the firmware file with the application header and CRC.
-3. Copy the generated `.bin` file to a FAT-formatted USB flash drive.
+2. Generate the firmware file according to the selected bootloader configuration.
+3. Copy the firmware file to a FAT-formatted USB flash drive.
 4. Rename the firmware file to:
 
 ```text
@@ -212,6 +235,10 @@ app_crc.bin
 5. Insert the USB flash drive into the STM32F407 board.
 6. Power on or reset the board.
 7. The bootloader detects the firmware, validates it, and updates the application if required.
+
+When header support is enabled, `app_crc.bin` must contain the application header and CRC.
+
+When header support is disabled, `app_crc.bin` must contain the normal application `.bin` image without the header.
 
 If the firmware is already identical, the bootloader does not erase or reprogram the application Flash.
 
@@ -227,9 +254,9 @@ For the STM32F407, the application starts at:
 
 and the initial MSP is expected to point to the STM32F407 SRAM region.
 
-The bootloader also uses the stored application header and CRC to verify the application image.
+When header support is enabled, the bootloader also uses the stored application header and CRC to verify the application image.
 
-This provides both a basic startup check and firmware integrity verification.
+This provides a basic application startup check and firmware integrity verification.
 
 ## Debug Output
 
